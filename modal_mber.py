@@ -99,12 +99,16 @@ image = (
         """sed -i '/results = {}/a\\        print(f"DEBUG optimize_truncation: Processing {len(self.region_chains)} chains", flush=True)' /tmp/mber-open/src/mber/core/truncation.py""",
         """sed -i '/results\\[chain_id\\] = (inclusion_mask, F\\[pos\\]\\[current_state\\])/a\\            print(f"DEBUG optimize_truncation: Chain {chain_id} - kept {sum(inclusion_mask)}/{len(inclusion_mask)} residues", flush=True)' /tmp/mber-open/src/mber/core/truncation.py""",
         # Install JAX and pin numpy<2.0 for openmm compatibility
-        "pip install jax[cuda12]==0.5.2 'numpy<2.0'",
+        # (using `/.uv/uv pip` instead of bare `pip` -- this image's conda-provided
+        # pip launcher is broken: micromamba's solver treats "pip" as already
+        # satisfied by a stub that can't import its own `pip` package. `uv` isn't
+        # on PATH here either, hence the explicit path Modal itself uses internally.)
+        "/.uv/uv pip install --python $(command -v python) jax[cuda12]==0.5.2 'numpy<2.0'",
         # Install PyTorch from CUDA 12.8 index
-        "pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128",
+        "/.uv/uv pip install --python $(command -v python) torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128",
         # Then install mBER (requirements.txt will use already-installed numpy)
-        "cd /tmp/mber-open && pip install -e .",
-        "cd /tmp/mber-open/protocols && pip install -e .",
+        "cd /tmp/mber-open && /.uv/uv pip install --python $(command -v python) -e .",
+        "cd /tmp/mber-open/protocols && /.uv/uv pip install --python $(command -v python) -e .",
     )
     .uv_pip_install("boto3==1.40.42", "prody==2.6.1", "numpy<2.0")
     # Download NanoBodyBuilder2 models during image build (v5 - use default ~/.mber/nbb2_weights)
