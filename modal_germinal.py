@@ -228,6 +228,10 @@ image = (
         "ln -sf /usr/bin/llvm-nm /tools/llvm/bin/llvm-nm",
         "ln -sf /usr/bin/llvm-ranlib /tools/llvm/bin/llvm-ranlib",
     )
+    # mdtraj's geometry/order.py imports pkg_resources (from setuptools) at
+    # import time; this debian_slim image doesn't include setuptools by default,
+    # so it's never installed unless something else happens to pull it in.
+    .uv_pip_install("setuptools")
     .uv_pip_install("mdtraj==1.9.9")
     .run_commands(
         "pip install 'jax[cuda12_pip]==0.5.3' -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
