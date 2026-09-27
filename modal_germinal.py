@@ -234,7 +234,9 @@ image = (
     # mdtraj itself already dropped this import upstream (fixed in 1.10.0,
     # 2024-05-31, github.com/mdtraj/mdtraj@02d44d4) so upgrading is the real
     # fix rather than a setuptools version workaround.
-    .uv_pip_install("mdtraj==1.11.1.post2")
+    # 1.11.x requires Python>=3.11 (this image is 3.10) -- 1.10.3 is the newest
+    # release that still supports 3.10 and postdates the pkg_resources fix.
+    .uv_pip_install("mdtraj==1.10.3")
     .run_commands(
         "pip install 'jax[cuda12_pip]==0.5.3' -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
     )
