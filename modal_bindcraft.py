@@ -47,6 +47,14 @@ image = (
         "cd /root/bindcraft && git checkout c0a48d595d4976694aa979438712ac94c16620bb",
         "chmod +x /root/bindcraft/functions/dssp",
         "chmod +x /root/bindcraft/functions/DAlphaBall.gcc",
+        # functions/pyrosetta_utils.py:26 calls iam.set_interface("A_B") with a
+        # plain string. Current PyRosetta's InterfaceAnalyzerMover.set_interface()
+        # requires a DockingPartners object instead (RosettaCommons/rosetta@2624daea,
+        # merged 2026-06-19). This pinned BindCraft commit predates that change and
+        # was never updated. Same fix BindCraft itself later took upstream
+        # (martinpacesa/BindCraft@12b50c8, but unpin PyRosetta means we hit this
+        # before that fix ever lands via a re-pin) -- applied directly here instead.
+        """sed -i 's/iam\\.set_interface("A_B")/interface = "A_B"\\n    docking_partners_type = getattr(pr.rosetta.core.pose, "DockingPartners", None)\\n    if docking_partners_type is not None:\\n        interface = docking_partners_type.docking_partners_from_string(interface)\\n    iam.set_interface(interface)/' /root/bindcraft/functions/pyrosetta_utils.py""",
     )
     .run_commands(
         "ln -s /usr/local/lib/python3.*/dist-packages/colabdesign colabdesign && mkdir /params"
