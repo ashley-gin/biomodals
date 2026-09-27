@@ -228,11 +228,13 @@ image = (
         "ln -sf /usr/bin/llvm-nm /tools/llvm/bin/llvm-nm",
         "ln -sf /usr/bin/llvm-ranlib /tools/llvm/bin/llvm-ranlib",
     )
-    # mdtraj's geometry/order.py imports pkg_resources (from setuptools) at
-    # import time; this debian_slim image doesn't include setuptools by default,
-    # so it's never installed unless something else happens to pull it in.
-    .uv_pip_install("setuptools")
-    .uv_pip_install("mdtraj==1.9.9")
+    # mdtraj==1.9.9's geometry/order.py does `from pkg_resources import
+    # parse_version` at import time. setuptools removed pkg_resources entirely
+    # as of 82.0.0 (2026-02-08) -- pinning an older setuptools would work, but
+    # mdtraj itself already dropped this import upstream (fixed in 1.10.0,
+    # 2024-05-31, github.com/mdtraj/mdtraj@02d44d4) so upgrading is the real
+    # fix rather than a setuptools version workaround.
+    .uv_pip_install("mdtraj==1.11.1.post2")
     .run_commands(
         "pip install 'jax[cuda12_pip]==0.5.3' -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
     )
