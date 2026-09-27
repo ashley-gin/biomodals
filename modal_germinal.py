@@ -94,6 +94,46 @@ def download_models():
         )
 
 
+def patch_iglm_tokenizer():
+    """Patch iglm's tokenizer construction for transformers>=5.0 compatibility.
+
+    iglm's own PyPI metadata pins only transformers>=4.6.1 (no upper bound),
+    so an unpinned install grabs whatever's current. transformers 5.0 removed
+    vocab_file= support from BertTokenizerFast's constructor path entirely
+    (loading a vocab from a file is now reserved for from_pretrained) -- it
+    silently falls back to a 5-token default vocab, so every amino acid token
+    maps to [UNK] and iglm's own sanity check raises "Unrecognized amino acid
+    token". Verified live against transformers 5.17.0 before writing this fix.
+    Fix: build the vocab dict ourselves and pass vocab= instead of
+    vocab_file= -- works on both old and new transformers, no version pin
+    needed.
+    """
+    iglm_py = Path("/usr/local/lib/python3.10/site-packages/iglm/model/IgLM.py")
+    content = iglm_py.read_text()
+
+    helper = (
+        "\n"
+        "import collections as _collections\n"
+        "\n"
+        "\n"
+        "def _load_vocab(vocab_file):\n"
+        "    vocab = _collections.OrderedDict()\n"
+        "    with open(vocab_file, encoding='utf-8') as reader:\n"
+        "        for index, token in enumerate(reader.readlines()):\n"
+        "            vocab[token.strip()] = index\n"
+        "    return vocab\n"
+        "\n"
+        "\n"
+    )
+    content = content.replace("class IgLM():", helper + "class IgLM():")
+    content = content.replace(
+        "vocab_file=VOCAB_FILE,",
+        "vocab=_load_vocab(VOCAB_FILE),",
+    )
+    iglm_py.write_text(content)
+    print("✓ Patched iglm/model/IgLM.py: transformers>=5.0-compatible tokenizer construction")
+
+
 def patch_germinal_code():
     """Patch Germinal code to fix bugs and add features"""
     import re
@@ -181,6 +221,21 @@ def patch_germinal_code():
     else:
         print("⚠ Warning: Could not find filter_utils.run_filters pattern to patch")
 
+    # Patch 4: Guard against None target_hotspots in compute_hotspot_proximity.
+    # target_settings["target_hotspots"] is intentionally Python None when no
+    # hotspots are given -- colabdesign/af/prep.py's own hotspot guard (a
+    # separate module) requires exactly None to skip cleanly -- but this
+    # len() check assumes a list/string and crashes on None instead of
+    # treating it as "no hotspots" like its own docstring says it should.
+    filter_utils_py = Path("/tmp/germinal/germinal/filters/filter_utils.py")
+    content = filter_utils_py.read_text()
+    content = content.replace(
+        'if len(target_settings["target_hotspots"]) > 0:',
+        'if target_settings["target_hotspots"] and len(target_settings["target_hotspots"]) > 0:',
+    )
+    filter_utils_py.write_text(content)
+    print("✓ Patched filter_utils.py: guard against None target_hotspots")
+
 
 image = (
     Image.debian_slim(python_version="3.10")
@@ -259,6 +314,7 @@ image = (
     )
     .uv_pip_install("cvxopt==1.3.2")
     .run_commands("cd /tmp/germinal && pip install -e .")
+    .run_function(patch_iglm_tokenizer)
     .run_function(patch_germinal_code)
     .uv_pip_install("git+https://github.com/chaidiscovery/chai-lab.git")
     .uv_pip_install("dm-haiku==0.0.13")
