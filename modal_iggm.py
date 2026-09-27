@@ -123,6 +123,28 @@ image = (
     .run_function(download_models)
     .pip_install("prody==2.6.1")
     .pip_install("ipython")
+    # The pip-installed openmm==8.3.1 wheel above links against CXXABI_1.3.15,
+    # which this image's system libstdc++ (debian bookworm, GCC 12) doesn't
+    # provide -- fails at import time with "version `CXXABI_1.3.15' not found".
+    # conda-forge's openmm bundles its own compatible runtime; reinstalling it
+    # here last forces it to take precedence over the broken pip copy.
+    .micromamba_install("openmm==8.3.1", channels=["conda-forge"])
+    # design.py's predict() passes fasta's last (antigen) sequence straight
+    # through as PdbParser.load()'s aa_seq= arg. Our (and this repo's own
+    # docstring's) documented convention for an antigen entry is an empty
+    # FASTA body (">A\n" with nothing after it) to mean "read chain A's
+    # sequence from the PDB instead" -- but parse_fasta() returns "" for
+    # that, not None, and pdb_parser.py's load() only auto-extracts from the
+    # PDB when aa_seq is None, so "" instead silently fails deeper in load()
+    # (caught by a broad except) and returns aa_seq=None, which then crashes
+    # design.py's own `len(aa_seq) > args.max_antigen_size` with
+    # "TypeError: object of type 'NoneType' has no len()". Only line 78 (the
+    # public load() entrypoint) should treat empty-as-None; line 346 is a
+    # different private helper with its own legitimate None handling -- left
+    # untouched.
+    .run_commands(
+        "cd /root/IgGM && sed -i '78s/if aa_seq is None:/if not aa_seq:/' IgGM/protein/parser/pdb_parser.py"
+    )
 )
 
 app = App("iggm", image=image)
