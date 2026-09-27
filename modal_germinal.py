@@ -233,7 +233,9 @@ image = (
         "pip install 'jax[cuda12_pip]==0.5.3' -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html"
     )
     .uv_pip_install(
-        "https://west.rosettacommons.org/pyrosetta/release/release/PyRosetta4.Release.python310.ubuntu.wheel/pyrosetta-2026.21+release.36f0c659eb-cp310-cp310-linux_x86_64.whl"
+        # Original pin (pyrosetta-2026.21) was rotated off Rosetta's mirror (404).
+        # Re-pinned to the newest release still hosted there as of 2026-09-26.
+        "https://west.rosettacommons.org/pyrosetta/release/release/PyRosetta4.Release.python310.ubuntu.wheel/pyrosetta-2026.30+release.bc091c65b8-cp310-cp310-linux_x86_64.whl"
     )
     .run_commands(
         "ln -s /usr/local/lib/python3.*/dist-packages/colabdesign colabdesign"
@@ -241,6 +243,11 @@ image = (
     .run_commands(
         "git clone https://github.com/SantiagoMille/germinal.git /tmp/germinal",
         "cd /tmp/germinal && git checkout 88d7f85aeb78684b05f872ec524255535ad15106",
+        # germinal/filters/pyrosetta_utils.py is adapted from BindCraft and has the
+        # same bug: current PyRosetta's InterfaceAnalyzerMover.set_interface()
+        # requires a DockingPartners object, not a plain string. Same fix BindCraft
+        # itself took upstream (martinpacesa/BindCraft@12b50c8).
+        """sed -i 's/iam\\.set_interface("A_B")/interface = "A_B"\\n    docking_partners_type = getattr(pr.rosetta.core.pose, "DockingPartners", None)\\n    if docking_partners_type is not None:\\n        interface = docking_partners_type.docking_partners_from_string(interface)\\n    iam.set_interface(interface)/' /tmp/germinal/germinal/filters/pyrosetta_utils.py""",
     )
     .uv_pip_install("cvxopt==1.3.2")
     .run_commands("cd /tmp/germinal && pip install -e .")
