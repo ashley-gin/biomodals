@@ -77,8 +77,11 @@ def download_model():
 
 
 image = (
-    Image.debian_slim(python_version="3.11")
-    .micromamba()
+    # NB: Image.micromamba() is a staticmethod that BUILDS A NEW IMAGE rather than layering
+    # onto the one before it, so `Image.debian_slim(python_version="3.11").micromamba()`
+    # silently discards the debian_slim base and its Python pin (modal-client #3295). Call
+    # micromamba directly with the version so the pin actually applies.
+    Image.micromamba(python_version="3.11")
     .apt_install("wget", "git", "gcc", "g++")
     # NB: keep this as pip_install — uv's strict build isolation breaks pandas'
     # legacy pkg_resources dependency when building via colabfold's git source.
