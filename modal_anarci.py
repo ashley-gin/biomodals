@@ -21,13 +21,21 @@ import tempfile
 
 from modal import App, Image
 
+# NB: ANARCI's own `python setup.py install` downloads germline data from IMGT/GENE-DB at
+# BUILD time and builds HMMs from it. That endpoint
+# (https://www.imgt.org/genedb/GENElect?query=...) is frequently slow or unresponsive -- it
+# timed out on 2026-09-29 while imgt.org itself served fine -- and when it does, the build
+# fails with "No such file or directory: 'curated_alignments/germlines.py'", which reads
+# like a packaging bug rather than a failed download. Depending on a third-party database
+# being up at image-build time is not something a class can rely on.
+#
+# bioconda ships anarci with the HMMs already built, so nothing is fetched from IMGT.
 image = (
     Image.micromamba()
-    .apt_install("git")
     .uv_pip_install("biopython")
-    .micromamba_install(["libstdcxx-ng", "hmmer=3.3.2"], channels=["conda-forge", "bioconda"])
-    .run_commands(
-        "git clone https://github.com/oxpig/ANARCI && cd ANARCI && python setup.py install"
+    .micromamba_install(
+        ["libstdcxx-ng", "hmmer=3.3.2", "anarci"],
+        channels=["conda-forge", "bioconda"],
     )
 )
 
