@@ -345,3 +345,13 @@ uv run --with modal --with pytest pytest tests/test_quick_runs.py -v -k sasa  # 
 ## Other modal repos
 
 - [RNA Seq Pipeline](https://github.com/tdsone/modal-rna-seq-pipeline) by @tdsone
+
+## Licensing
+
+This repository is MIT licensed (see `LICENSE`), **with one exception**:
+
+- **`protein-sol/`** is third-party code from the University of Manchester,
+  redistributed unmodified under the **GNU GPL v3**. It is invoked as a separate
+  program (never imported or linked), so the rest of this repository remains MIT.
+  Source, SHA-256, verification steps and citation are in
+  [`protein-sol/PROVENANCE.md`](protein-sol/PROVENANCE.md).
